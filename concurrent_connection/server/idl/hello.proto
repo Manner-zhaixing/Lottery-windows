@@ -1,0 +1,17 @@
+syntax="proto3";
+
+option go_package = ".;idl";
+
+message HelloRequest{
+    string data = 1;
+}
+
+message HelloResponse{
+    string data = 1;
+}
+
+service Hello{
+    rpc Hello(HelloRequest) returns (HelloResponse);
+}
+
+// protoc concurrent_connection/server/idl/hello.proto --go_out=./concurrent_connection/server/idl --go-grpc_out=./concurrent_connection/server/idl

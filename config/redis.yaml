@@ -1,0 +1,3 @@
+addr: localhost:6379
+pass: 123456
+db: 0

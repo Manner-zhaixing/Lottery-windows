@@ -1,0 +1,2 @@
+time="2024-05-24 17:53:03.704" level=info msg="create reader to mq" func=main.Init file="D:/practice_code/gift/mq_consumer/main.go:30"
+time="2024-05-24 17:53:20.909" level=info msg="create reader to mq" func=main.Init file="D:/practice_code/gift/mq_consumer/main.go:30"

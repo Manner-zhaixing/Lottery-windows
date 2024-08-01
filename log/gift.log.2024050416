@@ -1,0 +1,7 @@
+time="2024-05-04 16:27:43.942" level=info msg="connect to redis 0" func=gift/database.createRedisClient file="D:/practice_code/gift/database/db_connection.go:78"
+time="2024-05-04 16:27:43.957" level=info msg="connect to mysql db gift" func=gift/database.createMysqlDB file="D:/practice_code/gift/database/db_connection.go:49"
+time="2024-05-04 16:27:43.962" level=info msg="clear table orders" func=main.Init file="D:/practice_code/gift/main.go:44"
+time="2024-05-04 16:27:43.962" level=info msg="create writer to mq" func=gift/handler.InitMQ file="D:/practice_code/gift/handler/order_mq.go:29"
+time="2024-05-04 16:27:43.962" level=info msg="create reader to mq" func=gift/handler.InitMQ file="D:/practice_code/gift/handler/order_mq.go:38"
+time="2024-05-04 16:29:44.411" level=error msg="write kafka failed: dial tcp [::1]:9092: connectex: No connection could be made because the target machine actively refused it." func=gift/handler.ProduceOrder.func1 file="D:/practice_code/gift/handler/order_mq.go:50"
+time="2024-05-04 16:36:27.618" level=info msg="receive signal interrupt, but not exit" func=main.listenSignal file="D:/practice_code/gift/main.go:30"

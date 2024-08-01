@@ -1,0 +1,5 @@
+time="2024-05-04 16:27:19.338" level=info msg="create reader to mq" func=main.Init file="D:/practice_code/gift/mq_consumer/main.go:30"
+time="2024-05-04 16:27:49.698" level=info msg="create reader to mq" func=main.Init file="D:/practice_code/gift/mq_consumer/main.go:30"
+time="2024-05-04 16:29:21.369" level=info msg="create reader to mq" func=main.Init file="D:/practice_code/gift/mq_consumer/main.go:30"
+time="2024-05-04 16:35:09.891" level=info msg="connect to mysql db gift" func=gift/database.createMysqlDB file="D:/practice_code/gift/database/db_connection.go:49"
+time="2024-05-04 16:36:30.901" level=info msg="receive signal interrupt, exit" func=main.listenSignal file="D:/practice_code/gift/mq_consumer/main.go:56"
