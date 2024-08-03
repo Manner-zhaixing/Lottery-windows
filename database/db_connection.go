@@ -1,20 +1,19 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"gift/util"
+	//"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	ormlog "gorm.io/gorm/logger"
 	"log"
 	"os"
 	"sync"
 	"time"
-
-	"github.com/go-redis/redis"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	ormlog "gorm.io/gorm/logger"
 )
-
-// 建立数据库连接。代码讲解参见《双Token博客系统》
 
 var (
 	blog_mysql      *gorm.DB
@@ -72,7 +71,8 @@ func createRedisClient(address, passwd string, db int) *redis.Client {
 		Password: passwd,
 		DB:       db,
 	})
-	if err := cli.Ping().Err(); err != nil {
+	ctx := context.Background()
+	if err := cli.Ping(ctx).Err(); err != nil {
 		util.LogRus.Panicf("connect to redis %d failed %v", db, err)
 	} else {
 		util.LogRus.Infof("connect to redis %d", db)

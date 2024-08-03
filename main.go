@@ -37,6 +37,8 @@ func Init() {
 	util.InitLog("log")
 	// 从mysql中读取所有奖品数据放到redis
 	database.InitGiftInventory() //-v2
+	// 初始化redis中的ip黑名单
+	database.InitBanIPsRedis()
 	// 清空mysql中存储的清单
 	if err := database.ClearOrders(); err != nil {
 		panic(err)

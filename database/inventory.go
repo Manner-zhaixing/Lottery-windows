@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"gift/util"
 	"gorm.io/gorm"
@@ -18,6 +19,7 @@ func InitGiftInventory() {
 	// 将mysql中的数据读取并输入到giftCh管道中
 	go GetAllGiftsV2(giftCh)
 	// 获取redis客户端
+	ctx := context.Background()
 	client := GetRedisClient()
 	for {
 		gift, ok := <-giftCh
@@ -29,7 +31,7 @@ func InitGiftInventory() {
 			continue //没有库存的商品不参与抽奖
 		}
 		// 将奖品数据存入到redis,不设过期时间
-		err := client.Set(prefix+strconv.Itoa(gift.Id), gift.Count, 0).Err() //0表示不设过期时间
+		err := client.Set(ctx, prefix+strconv.Itoa(gift.Id), gift.Count, 0).Err() //0表示不设过期时间
 		if err != nil {
 			util.LogRus.Panicf("set gift %d:%s count to %d failed: %s", gift.Id, gift.Name, gift.Count, err)
 		}
@@ -38,8 +40,9 @@ func InitGiftInventory() {
 
 // GetAllGiftInventory 获取所有奖品剩余的库存量Redis
 func GetAllGiftInventory() []*Gift {
+	ctx := context.Background()
 	client := GetRedisClient()
-	keys, err := client.Keys(prefix + "*").Result() //根据前缀获取所有奖品的key
+	keys, err := client.Keys(ctx, prefix+"*").Result() //根据前缀获取所有奖品的key
 	if err != nil {
 		util.LogRus.Errorf("iterate all keys by prefix %s failed: %s", prefix, err)
 		return nil
@@ -47,11 +50,11 @@ func GetAllGiftInventory() []*Gift {
 	gifts := make([]*Gift, 0, len(keys))
 	for _, key := range keys { //根据奖品key获得奖品的库存count
 		if id, err := strconv.Atoi(key[len(prefix):]); err == nil {
-			count, err := client.Get(key).Int()
+			count, err := client.Get(ctx, key).Int()
 			if err == nil {
 				gifts = append(gifts, &Gift{Id: id, Count: count})
 			} else {
-				util.LogRus.Errorf("invalid gift inventory %s", client.Get(key).String())
+				util.LogRus.Errorf("invalid gift inventory %s", client.Get(ctx, key).String())
 			}
 		} else {
 			util.LogRus.Errorf("invalid redis key %s", key)
@@ -64,9 +67,10 @@ func GetAllGiftInventory() []*Gift {
 // ReduceInventory 奖品对应的库存减1--redis
 func ReduceInventory(GiftId int) error {
 	client := GetRedisClient()
+	ctx := context.Background()
 	key := prefix + strconv.Itoa(GiftId)
 	// redis.Decr是原子操作
-	n, err := client.Decr(key).Result()
+	n, err := client.Decr(ctx, key).Result()
 	if err != nil {
 		util.LogRus.Errorf("decr key %s failed: %s", key, err)
 		return err
@@ -80,7 +84,6 @@ func ReduceInventory(GiftId int) error {
 }
 
 // ReduceInventoryMysql 奖品对应的库存减1--mysql
-// 后加的----begin
 func ReduceInventoryMysql(GiftId int) error {
 	mysqlClient := GetGiftDBConnection()
 	err := mysqlClient.Model(&Gift{Id: GiftId}).Updates(map[string]interface{}{"Count": gorm.Expr("Count - ?", 1)})
@@ -91,5 +94,3 @@ func ReduceInventoryMysql(GiftId int) error {
 	}
 	return nil
 }
-
-//---end
