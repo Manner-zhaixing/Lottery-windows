@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"gift/config"
 	"gift/database"
 	"gift/util"
 	"os"
@@ -41,12 +42,20 @@ func ConsumeOrder() {
 			if err = sonic.Unmarshal(message.Value, &order); err == nil {
 				util.LogRus.Debugf("message partition %d", message.Partition)
 				// 将订单写入mysql
-				database.CreateOrder(order.UserId, order.GiftId)
+				database.CreateOrder(order)
 				// 将mysql中的库存减一
 				err = database.ReduceInventoryMysql(order.GiftId)
 				if err != nil {
-					util.LogRus.Errorf("reduce inventory mysql failed: %v", err)
+					util.LogRus.Errorf("[consumer] reduce inventory mysql failed: %v", err)
 				}
+				// 将该用户拉入黑名单，一定时间不能抽奖
+				mysqlConn := database.GetGiftDBConnection()
+				_, err = database.CreateBanUser(mysqlConn, order.UserId, int(config.BanUsersExpireTime))
+				if err != nil {
+					util.LogRus.Errorf("[consumer] user to banUsers failed")
+				}
+				// 将该ip拉入黑名单，一定时间不能抽奖
+				//_, err = database.CreateBanIP(mysqlConn, clientIP, int(config.BanIPsExpireTime))
 			} else {
 				util.LogRus.Errorf("order info is invalid json format: %s", string(message.Value))
 			}

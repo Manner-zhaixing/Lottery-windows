@@ -5,16 +5,25 @@ import (
 )
 
 type Order struct {
-	Id     int
-	GiftId int
-	UserId int
+	Id          int    `gorm:"column:id;primaryKey"`
+	GiftId      int    `gorm:"column:gift_id"`
+	UserId      int    `gorm:"column:user_id"`
+	GiftName    string `gorm:"column:gift_name"`
+	GiftPicture string `gorm:"column:gift_picture"`
+	GiftPrice   int    `gorm:"column:gift_price"`
 }
 
 // CreateOrder 写入一条订单记录
-func CreateOrder(userid, giftid int) int {
+func CreateOrder(order Order) int {
 	db := GetGiftDBConnection()
-	order := Order{GiftId: giftid, UserId: userid}
-	if err := db.Create(&order).Error; err != nil {
+	orderMsg := Order{
+		GiftId:      order.GiftId,
+		UserId:      order.UserId,
+		GiftName:    order.GiftName,
+		GiftPicture: order.GiftPicture,
+		GiftPrice:   order.GiftPrice,
+	}
+	if err := db.Create(&orderMsg).Error; err != nil {
 		util.LogRus.Errorf("create order failed: %s", err)
 		return 0
 	} else {

@@ -27,8 +27,15 @@ func InitMQ() {
 }
 
 // ProduceOrder 把订单放入mq
-func ProduceOrder(UserId, GiftId int) {
-	order := database.Order{UserId: UserId, GiftId: GiftId}
+func ProduceOrder(UserId, GiftId int, giftInformation *database.Gift) {
+	//order := database.Order{UserId: UserId, GiftId: GiftId}
+	order := database.Order{
+		UserId:      UserId,
+		GiftId:      GiftId,
+		GiftName:    giftInformation.Name,
+		GiftPicture: giftInformation.Picture,
+		GiftPrice:   giftInformation.Price,
+	}
 	writeWg.Add(1)
 	go func() { //写MQ太慢，异步执行
 		defer writeWg.Done()

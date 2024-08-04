@@ -13,4 +13,10 @@ var (
 	BanUsersSetRedis = "banListUserSet"
 	// BanUsersExpireTime 黑名单用户过期时间
 	BanUsersExpireTime = time.Hour
+	// IPSumsDayLimitMax ip每日访问最大上限
+	IPSumsDayLimitMax int64 = 100
+	// UserSumsDayLimitMax 用户id每日访问最大上限
+	UserSumsDayLimitMax int64 = 100
+	// LotteryAlgorithm 抽奖算法种类
+	LotteryAlgorithm = 1
 )

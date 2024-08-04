@@ -38,13 +38,15 @@ func Init() {
 	// 从mysql中读取所有奖品数据放到redis
 	database.InitGiftInventory() //-v2
 	// 初始化redis中的ip黑名单
-	database.InitBanIPsRedis()
+	//database.InitBanIPsRedis()
 	// 清空mysql中存储的清单
 	if err := database.ClearOrders(); err != nil {
 		panic(err)
 	} else {
 		util.LogRus.Info("clear table orders")
 	}
+	// 开启定时任务，每天0点删除用于存储用户抽奖次数和ip抽奖次数的hash，redis中
+	go database.InitHashRedisTasks()
 	go listenSignal()
 	// 初始化消息队列
 	handler.InitMQ()
@@ -75,8 +77,8 @@ func main() {
 	router.GET("/gifts", handler.GetAllGifts) //获取所有奖品信息--v1
 	router.GET("/lucky", handler.Lottery)     //点击抽奖按钮
 
-	fmt.Println("run:localhost:5678")
-	router.Run("localhost:5678")
+	fmt.Println("[run]127.0.0.1:5678")
+	router.Run(":5678")
 
 }
 
