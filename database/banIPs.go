@@ -2,20 +2,23 @@ package database
 
 import (
 	"gorm.io/gorm"
+	"time"
 )
 
 // 黑名单模型等数据库相关操作
 
 // BanIPs 黑名单表的model
 type BanIPs struct {
-	Id        int    `gorm:"column:id"`
-	Ip        string `gorm:"column:ip"`
-	LimitTime int    `gorm:"column:limittime"`
+	Id         int    `gorm:"column:id"`
+	Ip         string `gorm:"column:ip"`
+	CreateTime int    `gorm:"column:create_time"`
+	DeadTime   int    `gorm:"column:dead_time"`
 }
 
 // CreateBanIP 创建一个新的黑名单IP记录
-func CreateBanIP(db *gorm.DB, ip string, limitTime int) (*BanIPs, error) {
-	banIP := &BanIPs{Ip: ip, LimitTime: limitTime}
+func CreateBanIP(db *gorm.DB, ip string, DeadTime int) (*BanIPs, error) {
+	currTime := int(time.Now().Unix())
+	banIP := &BanIPs{Ip: ip, CreateTime: currTime, DeadTime: DeadTime}
 	if err := db.Create(banIP).Error; err != nil {
 		return nil, err
 	}

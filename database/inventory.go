@@ -3,13 +3,16 @@ package database
 import (
 	"context"
 	"fmt"
+	"gift/config"
 	"gift/util"
 	"gorm.io/gorm"
 	"strconv"
+	"strings"
 )
 
-const (
-	prefix = "gift_count_" //所有key设置统一的前缀，方便后续按前缀遍历key
+var (
+	prefix                = config.GiftCountPrefix //所有key设置统一的前缀，方便后续按前缀遍历key
+	giftGTypeMinMaxPrefix = config.GiftGTypeMinMaxPrefix
 )
 
 // InitGiftInventory 从Mysql中读出所有奖品的初始库存，存入Redis。
@@ -35,6 +38,12 @@ func InitGiftInventory() {
 		if err != nil {
 			util.LogRus.Panicf("set gift %d:%s count to %d failed: %s", gift.Id, gift.Name, gift.Count, err)
 		}
+		// 将奖品的GType，minWeight,maxWeight拼接之后存入到redis
+		giftGTypeMinMax := strconv.Itoa(gift.GType) + "_" + strconv.Itoa(gift.MinWeight) + "_" + strconv.Itoa(gift.MaxWeight)
+		err = client.Set(ctx, giftGTypeMinMaxPrefix+strconv.Itoa(gift.Id), giftGTypeMinMax, 0).Err() //0表示不设过期时间
+		if err != nil {
+			util.LogRus.Panicf("set gift %d:%s count to %d failed: %s", gift.Id, gift.Name, gift.Count, err)
+		}
 	}
 }
 
@@ -47,18 +56,42 @@ func GetAllGiftInventory() []*Gift {
 		util.LogRus.Errorf("iterate all keys by prefix %s failed: %s", prefix, err)
 		return nil
 	}
+	if err != nil {
+		util.LogRus.Errorf("iterate all keys by prefix %s failed: %s", giftGTypeMinMaxPrefix, err)
+		return nil
+	}
 	gifts := make([]*Gift, 0, len(keys))
 	for _, key := range keys { //根据奖品key获得奖品的库存count
-		if id, err := strconv.Atoi(key[len(prefix):]); err == nil {
-			count, err := client.Get(ctx, key).Int()
-			if err == nil {
-				gifts = append(gifts, &Gift{Id: id, Count: count})
+		id, _ := strconv.Atoi(key[len(prefix):])
+		count, errCount := client.Get(ctx, key).Int()
+		others, errOthers := client.Get(ctx, giftGTypeMinMaxPrefix+strconv.Itoa(id)).Result()
+		if errCount != nil && errOthers != nil {
+			othersSlice := strings.Split(others, "_")
+			if len(othersSlice) != 3 {
+				util.LogRus.Errorf("[lottert read redis failed]")
 			} else {
-				util.LogRus.Errorf("invalid gift inventory %s", client.Get(ctx, key).String())
+				temp := &Gift{
+					Id:        id,
+					Count:     count,
+					GType:     util.StrToInt(othersSlice[0]),
+					MinWeight: util.StrToInt(othersSlice[1]),
+					MaxWeight: util.StrToInt(othersSlice[2]),
+				}
+				gifts = append(gifts, temp)
 			}
 		} else {
-			util.LogRus.Errorf("invalid redis key %s", key)
+			util.LogRus.Errorf("[lottert read redis failed]")
 		}
+		//if id, err := strconv.Atoi(key[len(prefix):]); err == nil {
+		//	count, err := client.Get(ctx, key).Int()
+		//	if err == nil {
+		//
+		//	} else {
+		//		util.LogRus.Errorf("invalid gift inventory %s", client.Get(ctx, key).String())
+		//	}
+		//} else {
+		//	util.LogRus.Errorf("invalid redis key %s", key)
+		//}
 	}
 
 	return gifts

@@ -1,17 +1,22 @@
 package database
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+	"time"
+)
 
 // BanUsers 黑名单表的model
 type BanUsers struct {
-	Id        int `gorm:"column:id"`
-	UserID    int `gorm:"column:userid"`
-	LimitTime int `gorm:"column:limittime"`
+	Id         int `gorm:"column:id"`
+	UserID     int `gorm:"column:userid"`
+	CreateTime int `gorm:"column:create_time"`
+	DeadTime   int `gorm:"column:dead_time"`
 }
 
 // CreateBanUser 创建一个新的用户黑名单记录
-func CreateBanUser(db *gorm.DB, userID int, limitTime int) (*BanUsers, error) {
-	banUser := &BanUsers{UserID: userID, LimitTime: limitTime}
+func CreateBanUser(db *gorm.DB, userID int, deadTime int) (*BanUsers, error) {
+	currTime := int(time.Now().Unix())
+	banUser := &BanUsers{UserID: userID, CreateTime: currTime, DeadTime: deadTime}
 	if err := db.Create(banUser).Error; err != nil {
 		return nil, err
 	}

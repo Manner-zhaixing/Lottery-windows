@@ -11,13 +11,20 @@ import (
 
 // GetAllGifts 获取所有奖品信息，用于初始化轮盘
 func GetAllGifts(ctx *gin.Context) {
+	//原始代码：从mysql获取初始轮盘的奖品信息
 	gifts := database.GetAllGiftsV1()
+	//改进：从redis获取初始轮盘的奖品信息
+	//gifts := database.GetAllGiftInventory()
 	if len(gifts) == 0 {
 		ctx.JSON(http.StatusInternalServerError, nil)
 	} else {
 		//抹掉敏感信息
 		for _, gift := range gifts {
-			gift.Count = 0
+			gift.Count = -1
+			gift.Price = -1
+			gift.GType = -1
+			gift.MinWeight = -1
+			gift.MaxWeight = -1
 		}
 		ctx.JSON(http.StatusOK, gifts)
 	}
@@ -68,34 +75,41 @@ func Lottery(ctx *gin.Context) {
 		return
 	}
 	// 5.验证ip黑名单
+	var BlackListBool = false
 	flagInBanIP := database.CheckBanIPs(clientIP)
 	if flagInBanIP {
+		// 在黑名单，限制该ip无法抽取大奖
+		BlackListBool = true
 		// 在黑名单中，拦截
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"code": 105,
-			"msg":  "该ip已被拉黑",
-			"data": -1,
-		})
-		return
+		//ctx.JSON(http.StatusInternalServerError, gin.H{
+		//	"code": 105,
+		//	"msg":  "该ip已被拉黑",
+		//	"data": -1,
+		//})
 	}
 	// 6.验证用户黑名单
 	userIdInt, _ := strconv.Atoi(loginUserID)
-	flagInBanUser := database.CheckBanUsers(userIdInt)
-	if flagInBanUser {
-		// 在黑名单中，拦截
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"code": 105,
-			"msg":  "该用户已被拉黑",
-			"data": -1,
-		})
-		return
+	if !BlackListBool {
+		// 如果ip不在黑名单，验证用户黑名单
+		flagInBanUser := database.CheckBanUsers(userIdInt)
+		if flagInBanUser {
+			//在用户黑名单中，该用户短时间不能抽取大奖
+			BlackListBool = true
+			// 在黑名单中，拦截
+			//ctx.JSON(http.StatusInternalServerError, gin.H{
+			//	"code": 105,
+			//	"msg":  "该用户已被拉黑",
+			//	"data": -1,
+			//})
+		}
 	}
-	// 8.匹配奖品是否中奖，即抽奖逻辑
-	giftId, giftInformation := lotteryLogic()
+
+	// 8.匹配奖品是否中奖，即抽奖逻辑;返回值[-1代表无库存，取消抽奖;1为谢谢参与;其余id为正常发奖]
+	giftId, giftInformation := lotteryLogic(BlackListBool)
 	if giftId == -1 {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code": 106,
-			"msg":  "抽奖失败",
+			"msg":  "无库存，取消抽奖",
 			"data": -1,
 		})
 		return
@@ -113,8 +127,19 @@ func Lottery(ctx *gin.Context) {
 			return
 		} else {
 			// 11.记录中奖订单
-			// 用户ID写死,把订单信息写入mq
+			// 用户ID写死
 			userID, _ := strconv.Atoi(loginUserID)
+			// 将id和user拉入黑名单
+			mysqlClient := database.GetGiftDBConnection()
+			_, err := database.CreateBanIP(mysqlClient, clientIP, config.DeadTime)
+			if err != nil {
+				util.LogRus.Warnf("mysql插入banIP失败")
+			}
+			_, err = database.CreateBanUser(mysqlClient, userID, config.DeadTime)
+			if err != nil {
+				util.LogRus.Warnf("mysql插入banUser失败")
+			}
+			// 把订单信息写入mq
 			ProduceOrder(userID, giftId, giftInformation)
 			//减库存成功后才给前端返回奖品ID
 			// 12.返回抽奖结果
@@ -128,43 +153,45 @@ func Lottery(ctx *gin.Context) {
 	}
 }
 
-func lotteryLogic() (int, *database.Gift) {
+// lotteryLogic 抽奖逻辑
+func lotteryLogic(BlackListBool bool) (int, *database.Gift) {
 	// 使用的抽奖算法类别 [1-库存作为权重,2-随机,3-手动赋值权重,可以结合其他业务]
-	var index int
-	// 抽奖算法中的奖品权重
-	var weights []int
 	// gifts := make([]*Gift, 0, len(keys))
-	// Gift{Id: id, Count: count}
+	// Gift
+	//{
+	//  Id        int
+	//	Count     int
+	//	GType     int
+	//	MinWeight int
+	//	MaxWeight int
+	//}
 	gifts := database.GetAllGiftInventory() //获取所有奖品剩余的库存量Redis
-	ids := make([]int, 0, len(gifts))
-	probs := make([]float64, 0, len(gifts))
-	giftsInformation := make([]*database.Gift, 0, len(gifts))
-	for _, gift := range gifts {
-		if gift.Count > 0 { //先确保redis返回的库存量大小0，因为抽奖算法Lottery不支持抽中概率为0的奖品
-			ids = append(ids, gift.Id)
-			probs = append(probs, float64(gift.Count))
-			giftsInformation = append(giftsInformation, gift)
+	//ids := make([]int, 0, len(gifts))
+	//probs := make([]float64, 0, len(gifts))
+
+	// 查看所有奖品的库存是否都为0
+	var sum int = 0
+	for _, v := range gifts {
+		if v.Count <= 0 {
+			sum++
 		}
 	}
-	// 如果没有奖品，则返回"谢谢参与"
-	if len(ids) == 0 {
-		// CloseChannel() //关闭channel
-		go CloseMQ() //关闭写mq的连接
-		return 0, nil
-	}
-	// 抽奖算法，可手动选择哪种算法
-	if config.LotteryAlgorithm == 1 {
-		index = util.Lottery(probs) //抽中第index个奖品
-	} else if config.LotteryAlgorithm == 2 {
-		index = util.LotteryRandom(probs)
-	} else if config.LotteryAlgorithm == 3 {
-		// weights 是传入的每个奖品对应的权重值，可以联合其他业务，比如社交平台用户的访问次数，或用户购物次数等
-		index = util.LotteryWeightedRandom(probs, weights)
-	}
-	// 如果索引=-1，则表示抽奖失败
-	if index == -1 {
+	if sum == len(gifts) {
+		// 所有奖品都无库存
+		go CloseMQ()
 		return -1, nil
 	}
-	giftId := ids[index]
-	return giftId, giftsInformation[index]
+
+	//// 抽奖算法，可手动选择哪种算法
+	//if config.LotteryAlgorithm == 1 {
+	//	giftID = util.Lottery(probs) //抽中第index个奖品
+	//} else if config.LotteryAlgorithm == 2 {
+	//	giftID = util.LotteryRandom(probs)
+	//} else if config.LotteryAlgorithm == 3 {
+	//	// weights 是传入的每个奖品对应的权重值，可以联合其他业务，比如社交平台用户的访问次数，或用户购物次数等
+	//	giftID, giftInformation := util.LotteryWeightedRandom(gifts)
+	//}
+	giftID, giftInformation := util.LotteryWeightedRandom(gifts)
+	// giftID如果为1，代表谢谢参与
+	return giftID, giftInformation
 }

@@ -63,7 +63,7 @@ func CheckBanUsers(userid int) bool {
 		return false
 	}
 	if banUser != nil {
-		if banUser.LimitTime > int(time.Now().Unix()) {
+		if banUser.DeadTime > int(time.Now().Unix()) {
 			// 还在黑名单中，且未过期
 			return true
 		} else {
@@ -113,7 +113,7 @@ func CheckBanIPs(ip string) bool {
 		return false
 	}
 	if banIP != nil {
-		if banIP.LimitTime > int(time.Now().Unix()) {
+		if banIP.DeadTime > int(time.Now().Unix()) {
 			// 还在黑名单中，且未过期
 			return true
 		} else {

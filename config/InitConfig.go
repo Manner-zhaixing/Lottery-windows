@@ -19,4 +19,12 @@ var (
 	UserSumsDayLimitMax int64 = 100
 	// LotteryAlgorithm 抽奖算法种类
 	LotteryAlgorithm = 1
+	// GiftCountPrefix Mysql库存初始化存到Redis的key名字--只保存库存
+	GiftCountPrefix = "gift_count_"
+	// GiftGTypeMinMaxPrefix Mysql库存初始化存到Redis的key名字--只保存库存
+	GiftGTypeMinMaxPrefix = "gift_gtype_min_max_"
+	// TotalWeight 抽奖奖品总权重
+	TotalWeight = 10000
+	// DeadTime 黑名单的截止时间
+	DeadTime = int(time.Now().Unix()) + 12*60*60
 )

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"gift/util"
 
 	"gorm.io/gorm"
@@ -9,11 +10,14 @@ import (
 const EMPTY_GIFT = 1 //空奖品（“谢谢参与”）的ID
 
 type Gift struct {
-	Id      int    `gorm:"column:id;primaryKey"`
-	Name    string `gorm:"column:name"`
-	Price   int    `gorm:"column:price"`
-	Picture string `gorm:"column:picture"`
-	Count   int    `gorm:"column:count"`
+	Id        int    `gorm:"column:id;primaryKey"`
+	Name      string `gorm:"column:name"`
+	Price     int    `gorm:"column:price"`
+	Picture   string `gorm:"column:picture"`
+	Count     int    `gorm:"column:count"`
+	GType     int    `gorm:"column:gtype"`
+	MinWeight int    `gorm:"column:minweight"`
+	MaxWeight int    `gorm:"column:maxweight"`
 }
 
 func (Gift) TableName() string {
@@ -30,7 +34,7 @@ func GetAllGiftsV1() []*Gift {
 	var gifts []*Gift
 	err := db.Select(_all_gift_field).Find(&gifts).Error
 	if err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			util.LogRus.Errorf("read table %s failed: %s", Gift{}.TableName(), err)
 		}
 	}
