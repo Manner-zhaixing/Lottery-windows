@@ -192,6 +192,10 @@ func lotteryLogic(BlackListBool bool) (int, *database.Gift) {
 	//	giftID, giftInformation := util.LotteryWeightedRandom(gifts)
 	//}
 	giftID, giftInformation := util.LotteryWeightedRandom(gifts)
+	if BlackListBool && giftInformation.GType == 0 {
+		//黑名单抽到大奖，取消抽奖，改为谢谢参与
+		return 1, nil
+	}
 	// giftID如果为1，代表谢谢参与
 	return giftID, giftInformation
 }
