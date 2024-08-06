@@ -1,1 +1,0 @@
-time="2024-05-02 19:58:14.076" level=panic msg="connect to redis 0 failed NOAUTH Authentication required." func=gift/database.createRedisClient file="D:/practice_code/gift/database/db_connection.go:76"

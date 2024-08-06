@@ -1,3 +1,0 @@
-time="2024-05-03 16:08:22.428" level=info msg="connect to redis 0" func=gift/database.createRedisClient file="D:/practice_code/gift/database/db_connection.go:78"
-time="2024-05-03 16:08:22.442" level=info msg="connect to mysql db gift" func=gift/database.createMysqlDB file="D:/practice_code/gift/database/db_connection.go:49"
-time="2024-05-03 16:08:22.448" level=info msg="clear table orders" func=main.Init file="d:/practice_code/gift/main.go:44"

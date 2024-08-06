@@ -1,5 +1,0 @@
-time="2024-05-24 17:52:44.772" level=info msg="connect to redis 0" func=gift/database.createRedisClient file="D:/practice_code/gift/database/db_connection.go:78"
-time="2024-05-24 17:52:44.785" level=info msg="connect to mysql db gift" func=gift/database.createMysqlDB file="D:/practice_code/gift/database/db_connection.go:49"
-time="2024-05-24 17:52:44.789" level=info msg="clear table orders" func=main.Init file="D:/practice_code/gift/main.go:44"
-time="2024-05-24 17:52:44.794" level=info msg="create writer to mq" func=gift/handler.InitMQ file="D:/practice_code/gift/handler/order_mq.go:26"
-time="2024-05-24 17:56:34.518" level=info msg="receive signal interrupt, but not exit" func=main.listenSignal file="D:/practice_code/gift/main.go:30"

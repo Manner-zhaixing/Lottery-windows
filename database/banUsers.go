@@ -8,7 +8,7 @@ import (
 // BanUsers 黑名单表的model
 type BanUsers struct {
 	Id         int `gorm:"column:id"`
-	UserID     int `gorm:"column:userid"`
+	UserID     int `gorm:"column:uid"`
 	CreateTime int `gorm:"column:create_time"`
 	DeadTime   int `gorm:"column:dead_time"`
 }

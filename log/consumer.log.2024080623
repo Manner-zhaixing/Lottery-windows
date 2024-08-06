@@ -1,0 +1,1 @@
+time="2024-08-06 23:36:55.204" level=info msg="create reader to mq" func=main.Init file="D:/practice_code/gift-windows/mq_consumer/main.go:31"

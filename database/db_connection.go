@@ -40,12 +40,12 @@ func createMysqlDB(dbname, host, user, pass string, port int) *gorm.DB {
 	var err error
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: dblog, PrepareStmt: true})
 	if err != nil {
-		util.LogRus.Panicf("connect to mysql use dsn %s failed: %s", dsn, err)
+		util.LogRus.Panicf("mysql链接失败，panic: %s", err)
 	}
 	sqlDB, _ := db.DB()
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetMaxIdleConns(20)
-	util.LogRus.Infof("connect to mysql db %s", dbname)
+	util.LogRus.Infof("链接mysql成功 %s", dbname)
 	return db
 }
 
@@ -65,17 +65,17 @@ func GetGiftDBConnection() *gorm.DB {
 	return blog_mysql
 }
 
-func createRedisClient(address, passwd string, db int) *redis.Client {
+func createRedisClient(address, pass string, db int) *redis.Client {
 	cli := redis.NewClient(&redis.Options{
 		Addr:     address,
-		Password: passwd,
+		Password: pass,
 		DB:       db,
 	})
 	ctx := context.Background()
 	if err := cli.Ping(ctx).Err(); err != nil {
-		util.LogRus.Panicf("connect to redis %d failed %v", db, err)
+		util.LogRus.Panicf("redis链接失败，panic: %s", err)
 	} else {
-		util.LogRus.Infof("connect to redis %d", db)
+		util.LogRus.Infof("connect to redis success")
 	}
 	return cli
 }
@@ -85,7 +85,7 @@ func GetRedisClient() *redis.Client {
 		if blog_redis == nil {
 			viper := util.CreateConfig("redis")
 			addr := viper.GetString("addr")
-			pass := viper.GetString("pass")
+			pass := viper.GetString("password")
 			db := viper.GetInt("db")
 			blog_redis = createRedisClient(addr, pass, db)
 		}

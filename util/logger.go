@@ -2,11 +2,9 @@ package util
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
-	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/sirupsen/logrus"
+	"os"
+	"strings"
 )
 
 var (
@@ -32,20 +30,7 @@ func InitLog(configFile string) {
 		panic(fmt.Errorf("invalid log level %s", viper.GetString("level")))
 	}
 
-	LogRus.SetFormatter(&logrus.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05.000",
-	})
+	LogRus.SetFormatter(&logrus.TextFormatter{})
 
-	logFile := ProjectRootPath + viper.GetString("file")
-	fout, err := rotatelogs.New(
-		logFile+".%Y%m%d%H",
-		rotatelogs.WithLinkName(logFile),
-		rotatelogs.WithRotationTime(1*time.Hour),
-		rotatelogs.WithMaxAge(7*24*time.Hour),
-	)
-	if err != nil {
-		panic(err)
-	}
-	LogRus.SetOutput(fout)
-	LogRus.SetReportCaller(true)
+	LogRus.SetOutput(os.Stdout)
 }

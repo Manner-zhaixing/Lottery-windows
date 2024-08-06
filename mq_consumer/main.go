@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"gift/config"
 	"gift/database"
 	"gift/util"
 	"os"
@@ -49,15 +48,15 @@ func ConsumeOrder() {
 					util.LogRus.Errorf("[consumer] reduce inventory mysql failed: %v", err)
 				}
 				// 将该用户拉入黑名单，一定时间不能抽奖
-				mysqlConn := database.GetGiftDBConnection()
-				_, err = database.CreateBanUser(mysqlConn, order.UserId, int(config.BanUsersExpireTime))
-				if err != nil {
-					util.LogRus.Errorf("[consumer] user to banUsers failed")
-				}
+				//mysqlConn := database.GetGiftDBConnection()
+				//_, err = database.CreateBanUser(mysqlConn, order.UserId, int(config.BanUsersExpireTime))
+				//if err != nil {
+				//	util.LogRus.Errorf("[consumer] user to banUsers failed")
+				//}
 				// 将该ip拉入黑名单，一定时间不能抽奖
 				//_, err = database.CreateBanIP(mysqlConn, clientIP, int(config.BanIPsExpireTime))
 			} else {
-				util.LogRus.Errorf("order info is invalid json format: %s", string(message.Value))
+				util.LogRus.Errorf("订单消息解析失败: %s", string(message.Value))
 			}
 		}
 	}

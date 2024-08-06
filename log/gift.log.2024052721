@@ -1,1 +1,0 @@
-time="2024-05-27 21:04:25.317" level=info msg="receive signal interrupt, but not exit" func=main.listenSignal file="D:/practice_code/gift-windows/main.go:29"
