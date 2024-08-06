@@ -14,9 +14,9 @@ var (
 	// BanUsersExpireTime 黑名单用户过期时间
 	BanUsersExpireTime = time.Hour
 	// IPSumsDayLimitMax ip每日访问最大上限
-	IPSumsDayLimitMax int64 = 100
+	IPSumsDayLimitMax int64 = 10000
 	// UserSumsDayLimitMax 用户id每日访问最大上限
-	UserSumsDayLimitMax int64 = 100
+	UserSumsDayLimitMax int64 = 10000
 	// LotteryAlgorithm 抽奖算法种类
 	LotteryAlgorithm = 1
 	// GiftCountPrefix Mysql库存初始化存到Redis的key名字--只保存库存
@@ -27,4 +27,8 @@ var (
 	TotalWeight = 10000
 	// DeadTime 黑名单的截止时间
 	DeadTime = int(time.Now().Unix()) + 12*60*60
+	// GuaranteePrefix 保底次数的前缀
+	GuaranteePrefix = "guarantee:"
+	// GuaranteeSum 保底次数，如果抽奖次数==保底次数，则抽取保底奖品
+	GuaranteeSum = 20
 )

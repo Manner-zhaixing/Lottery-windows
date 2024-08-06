@@ -104,8 +104,14 @@ func Lottery(ctx *gin.Context) {
 		}
 	}
 
-	// 8.匹配奖品是否中奖，即抽奖逻辑;返回值[-1代表无库存，取消抽奖;1为谢谢参与;其余id为正常发奖]
-	giftId, giftInformation := lotteryLogic(BlackListBool)
+	// 8.匹配奖品是否中奖，即抽奖逻辑;返回值[-1 代表无库存，取消抽奖;1为谢谢参与;其余id为正常发奖]
+	var guaranteeFlag = false
+	guaranteeSumsNow := database.GuaranteeSumIncrement(loginUserID)
+	if guaranteeSumsNow >= int64(config.GuaranteeSum) {
+		//抽奖次数+1之后到了指定的保底次数,返回true，保底
+		guaranteeFlag = true
+	}
+	giftId, giftInformation := lotteryLogic(BlackListBool, guaranteeFlag)
 	if giftId == -1 {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code": 106,
@@ -131,7 +137,7 @@ func Lottery(ctx *gin.Context) {
 			userID, _ := strconv.Atoi(loginUserID)
 			// 将id和user拉入黑名单
 			mysqlClient := database.GetGiftDBConnection()
-			_, err := database.CreateBanIP(mysqlClient, clientIP, config.DeadTime)
+			_, err = database.CreateBanIP(mysqlClient, clientIP, config.DeadTime)
 			if err != nil {
 				util.LogRus.Warnf("mysql插入banIP失败")
 			}
@@ -139,6 +145,8 @@ func Lottery(ctx *gin.Context) {
 			if err != nil {
 				util.LogRus.Warnf("mysql插入banUser失败")
 			}
+			// 保底次数重置
+			database.GuaranteeSumReset(loginUserID)
 			// 把订单信息写入mq
 			ProduceOrder(userID, giftId, giftInformation)
 			//减库存成功后才给前端返回奖品ID
@@ -154,7 +162,7 @@ func Lottery(ctx *gin.Context) {
 }
 
 // lotteryLogic 抽奖逻辑
-func lotteryLogic(BlackListBool bool) (int, *database.Gift) {
+func lotteryLogic(BlackListBool bool, guaranteeFlag bool) (int, *database.Gift) {
 	// 使用的抽奖算法类别 [1-库存作为权重,2-随机,3-手动赋值权重,可以结合其他业务]
 	// gifts := make([]*Gift, 0, len(keys))
 	// Gift
@@ -166,11 +174,13 @@ func lotteryLogic(BlackListBool bool) (int, *database.Gift) {
 	//	MaxWeight int
 	//}
 	gifts := database.GetAllGiftInventory() //获取所有奖品剩余的库存量Redis
-	//ids := make([]int, 0, len(gifts))
-	//probs := make([]float64, 0, len(gifts))
 
 	// 查看所有奖品的库存是否都为0
-	var sum int = 0
+	var (
+		sum             = 0
+		giftID          int
+		giftInformation *database.Gift
+	)
 	for _, v := range gifts {
 		if v.Count <= 0 {
 			sum++
@@ -181,21 +191,25 @@ func lotteryLogic(BlackListBool bool) (int, *database.Gift) {
 		go CloseMQ()
 		return -1, nil
 	}
-
-	//// 抽奖算法，可手动选择哪种算法
-	//if config.LotteryAlgorithm == 1 {
-	//	giftID = util.Lottery(probs) //抽中第index个奖品
-	//} else if config.LotteryAlgorithm == 2 {
-	//	giftID = util.LotteryRandom(probs)
-	//} else if config.LotteryAlgorithm == 3 {
-	//	// weights 是传入的每个奖品对应的权重值，可以联合其他业务，比如社交平台用户的访问次数，或用户购物次数等
-	//	giftID, giftInformation := util.LotteryWeightedRandom(gifts)
-	//}
-	giftID, giftInformation := util.LotteryWeightedRandom(gifts)
-	if BlackListBool && giftInformation.GType == 0 {
-		//黑名单抽到大奖，取消抽奖，改为谢谢参与
-		return 1, nil
+	if !guaranteeFlag {
+		// 非保底，正常抽奖
+		giftID, giftInformation = util.LotteryWeightedRandom(gifts)
+		if BlackListBool && giftInformation.GType == 0 {
+			//黑名单抽到大奖，取消抽奖，改为谢谢参与
+			return 1, nil
+		}
+	} else {
+		// 保底，获取有库存且GType为0的奖品，进行抽奖
+		// tempGifts 存储有库存且GType为0的奖品
+		tempGifts := make([]*database.Gift, 0)
+		for k, v := range gifts {
+			if v.Count > 0 && v.GType == 0 {
+				tempGifts = append(tempGifts, gifts[k])
+			}
+		}
+		giftID, giftInformation = util.LotteryWeightedRandom(gifts)
 	}
+
 	// giftID如果为1，代表谢谢参与
 	return giftID, giftInformation
 }
