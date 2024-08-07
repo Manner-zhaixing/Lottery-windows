@@ -6,10 +6,8 @@ import (
 	"gift/service"
 	"gift/util"
 	"github.com/gin-gonic/gin"
-	"math/rand"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 // GetAllGifts 获取所有奖品信息，用于初始化轮盘
@@ -38,22 +36,22 @@ func GetAllGifts(ctx *gin.Context) {
 
 // Lottery 抽奖
 func Lottery(ctx *gin.Context) {
-
+	// 产生随机userID和IP地址
+	loginUserID := util.GenerateRandomUserID()
+	clientIP := util.GenerateRandomIP()
 	// 抽奖之前的验证逻辑
 	// 1.验证登录用户
 
 	// 2.用户抽奖的分布式锁
 	// 根据用户id获取分布式锁，防止用户短时间大量点击抽奖按钮
 	//loginUserID := "112"
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	loginUserID := strconv.Itoa(r.Intn(10000))
 	flagGetDisLock := service.DisLock(loginUserID)
 	if !flagGetDisLock {
 		// 获取失败，返回
 		util.LogRus.Warnf("[gift-lottery.func]获取分布式锁失败")
-		ctx.JSON(http.StatusInternalServerError, gin.H{
+		ctx.JSON(http.StatusOK, gin.H{
 			"code": 102,
-			"msg":  "获取分布式锁失败,请勿重复点击",
+			"msg":  "获取分布式锁失败,谢谢参与",
 			"data": -1,
 		})
 		return
@@ -66,7 +64,7 @@ func Lottery(ctx *gin.Context) {
 	UsesSumsDay := database.IncrementUserSumsDay(loginUserID)
 	if UsesSumsDay > config.UserSumsDayLimitMax {
 		util.LogRus.Warnf("[gift-lottery.func]今日该用户抽奖次数已用完")
-		ctx.JSON(http.StatusInternalServerError, gin.H{
+		ctx.JSON(http.StatusOK, gin.H{
 			"code": 103,
 			"msg":  "今日该用户抽奖次数已用完",
 			"data": -1,
@@ -74,11 +72,10 @@ func Lottery(ctx *gin.Context) {
 		return
 	}
 	// 4.验证ip今日的抽奖次数
-	clientIP := ctx.ClientIP()
 	IPSumsDay := database.IncrementIpSumsDay(clientIP)
 	if IPSumsDay > config.IPSumsDayLimitMax {
-		util.LogRus.Warnf("[gift-lottery.func]今日该ip抽奖次数已用完")
-		ctx.JSON(http.StatusInternalServerError, gin.H{
+		util.LogRus.Warnf("[gift-lottery.func] 今日该ip抽奖次数已用完")
+		ctx.JSON(http.StatusOK, gin.H{
 			"code": 104,
 			"msg":  "今日该ip抽奖次数已用完",
 			"data": -1,
@@ -98,7 +95,7 @@ func Lottery(ctx *gin.Context) {
 		//	"data": -1,
 		//})
 	}
-	// 6.验证用户黑名单
+	//// 6.验证用户黑名单
 	userIdInt, _ := strconv.Atoi(loginUserID)
 	if !BlackListBool {
 		// 如果ip不在黑名单，验证用户黑名单
@@ -116,6 +113,7 @@ func Lottery(ctx *gin.Context) {
 	}
 
 	// 8.匹配奖品是否中奖，即抽奖逻辑;返回值[-1 代表无库存，取消抽奖;1为谢谢参与;其余id为正常发奖]
+	// 查看保底次数
 	var guaranteeFlag = false
 	guaranteeSumsNow := database.GuaranteeSumIncrement(loginUserID)
 	if guaranteeSumsNow >= int64(config.GuaranteeSum) {
@@ -124,7 +122,7 @@ func Lottery(ctx *gin.Context) {
 	}
 	giftId, giftInformation := lotteryLogic(BlackListBool, guaranteeFlag)
 	if giftId == -1 {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
+		ctx.JSON(http.StatusOK, gin.H{
 			"code": 106,
 			"msg":  "无库存，取消抽奖",
 			"data": -1,
@@ -148,7 +146,7 @@ func Lottery(ctx *gin.Context) {
 			util.LogRus.Warnf("奖品%d减库存失败", giftId)
 			// 减库存失败，则重试
 			util.LogRus.Infof("用户:%s,谢谢参与,redis减库存失败", loginUserID)
-			ctx.JSON(http.StatusInternalServerError, gin.H{
+			ctx.JSON(http.StatusOK, gin.H{
 				"code": 107,
 				"msg":  "减库存失败，抽奖失败",
 				"data": -1,
@@ -166,9 +164,13 @@ func Lottery(ctx *gin.Context) {
 			if err != nil {
 				util.LogRus.Warnf("mysql插入banIP失败,err:%s", err)
 			}
-			_, err = database.CreateBanUser(mysqlClient, userID, config.DeadTime)
-			if err != nil {
-				util.LogRus.Warnf("mysql插入banUser失败,err:%s", err)
+			// 中了大奖才拉入黑名单，黑名单中的人不许抽大奖
+			if giftInformation.GType == 0 {
+				// 存在的话验证deadTime，过了黑名单的时间就更新，没过的话，不更新，不允许抽大奖，不存在黑名单就新建
+				_, err = database.UpdateOrInsertBanUser(mysqlClient, userID, config.DeadTime)
+				if err != nil {
+					util.LogRus.Warnf("mysql插入banUser失败,err:%s", err)
+				}
 			}
 			// 保底次数重置
 			database.GuaranteeSumReset(loginUserID)

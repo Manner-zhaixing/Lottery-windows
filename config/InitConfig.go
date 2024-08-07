@@ -1,6 +1,8 @@
 package config
 
-import "time"
+import (
+	"time"
+)
 
 // 负责存储一些默认配置
 
@@ -31,4 +33,6 @@ var (
 	GuaranteePrefix = "guarantee:"
 	// GuaranteeSum 保底次数，如果抽奖次数==保底次数，则抽取保底奖品
 	GuaranteeSum = 100
+	// GenerateRandomMaxUserID 生成随机userid的最大值
+	GenerateRandomMaxUserID = 100000
 )

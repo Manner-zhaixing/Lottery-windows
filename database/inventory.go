@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"gift/config"
 	"gift/util"
-	"gorm.io/gorm"
 	"strconv"
 	"strings"
 )
@@ -30,7 +29,8 @@ func InitGiftInventory() {
 			util.LogRus.Panicf("set gift %d:%s count to %d failed: %s", gift.Id, gift.Name, gift.Count, err)
 		}
 		// 将奖品的GType，minWeight,maxWeight拼接之后存入到redis
-		giftGTypeMinMax := strconv.Itoa(gift.GType) + "_" + strconv.Itoa(gift.MinWeight) + "_" + strconv.Itoa(gift.MaxWeight)
+		giftGTypeMinMax := strconv.Itoa(gift.GType) + "_" + strconv.Itoa(gift.MinWeight) + "_" + strconv.Itoa(gift.MaxWeight) +
+			"_" + gift.Name + "_" + gift.Picture + "_" + strconv.Itoa(gift.Price)
 		err = client.Set(ctx, giftGTypeMinMaxPrefix+strconv.Itoa(gift.Id), giftGTypeMinMax, 0).Err() //0表示不设过期时间
 		if err != nil {
 			util.LogRus.Panicf("set gift %d:%s count to %d failed: %s", gift.Id, gift.Name, gift.Count, err)
@@ -94,7 +94,7 @@ func GetAllGiftInventory() []*Gift {
 		others, errOthers := client.Get(ctx, giftGTypeMinMaxPrefix+strconv.Itoa(id)).Result()
 		if errCount == nil && errOthers == nil {
 			othersSlice := strings.Split(others, "_")
-			if len(othersSlice) != 3 {
+			if len(othersSlice) != 6 {
 				util.LogRus.Errorf("[lottert read redis failed-1]")
 			} else {
 				temp := &Gift{
@@ -103,6 +103,9 @@ func GetAllGiftInventory() []*Gift {
 					GType:     util.StrToInt(othersSlice[0]),
 					MinWeight: util.StrToInt(othersSlice[1]),
 					MaxWeight: util.StrToInt(othersSlice[2]),
+					Name:      othersSlice[3],
+					Picture:   othersSlice[4],
+					Price:     util.StrToInt(othersSlice[5]),
 				}
 				gifts = append(gifts, temp)
 			}
@@ -146,11 +149,24 @@ func ReduceInventory(GiftId int) error {
 // ReduceInventoryMysql 奖品对应的库存减1--mysql
 func ReduceInventoryMysql(GiftId int) error {
 	mysqlClient := GetGiftDBConnection()
-	err := mysqlClient.Model(&Gift{Id: GiftId}).Updates(map[string]interface{}{"Count": gorm.Expr("Count - ?", 1)})
-	// err := mysqlClient.Where("id = ?", string(GiftId)).Find(&gifts)
-	if err != nil {
-		// util.LogRus.Errorf("update gift inventory %d failed: %s", GiftId, err)
-		return fmt.Errorf("update gift inventory %d failed: %s", GiftId, err)
+	//err := mysqlClient.Model(&Gift{Id: GiftId}).Updates(map[string]interface{}{"Count": gorm.Expr("Count - ?", 1)})
+	//// err := mysqlClient.Where("id = ?", string(GiftId)).Find(&gifts)
+	//if err != nil {
+	//	// util.LogRus.Errorf("update gift inventory %d failed: %s", GiftId, err)
+	//	return fmt.Errorf("update gift inventory %d failed: %s", GiftId, err)
+	//}
+	var gift Gift
+	if err := mysqlClient.First(&gift, GiftId).Error; err != nil {
+		return err
+	}
+
+	if gift.Count > 0 {
+		gift.Count -= 1
+		if err := mysqlClient.Save(&gift).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("gift count is already zero")
 	}
 	return nil
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"gift/database"
 	"gift/util"
 	"os"
@@ -34,18 +33,21 @@ func Init() {
 func ConsumeOrder() {
 	for {
 		if message, err := reader.ReadMessage(context.Background()); err != nil {
-			fmt.Printf("read message from mq failed: %v", err)
+			util.LogRus.Infof("[consumer] read message from mq failed: %v", err)
 			break
 		} else {
 			var order database.Order
 			if err = sonic.Unmarshal(message.Value, &order); err == nil {
-				util.LogRus.Debugf("message partition %d", message.Partition)
+				util.LogRus.Debugf("[consumer] message partition %d", message.Partition)
 				// 将订单写入mysql
+				util.LogRus.Info("[consumer] 订单信息:", order)
 				database.CreateOrder(order)
 				// 将mysql中的库存减一
 				err = database.ReduceInventoryMysql(order.GiftId)
 				if err != nil {
 					util.LogRus.Errorf("[consumer] reduce inventory mysql failed: %v", err)
+				} else {
+					util.LogRus.Infof("[consumer] mysql 减库存成功")
 				}
 				// 将该用户拉入黑名单，一定时间不能抽奖
 				//mysqlConn := database.GetGiftDBConnection()
@@ -53,8 +55,9 @@ func ConsumeOrder() {
 				//if err != nil {
 				//	util.LogRus.Errorf("[consumer] user to banUsers failed")
 				//}
-				// 将该ip拉入黑名单，一定时间不能抽奖
+				//// 将该ip拉入黑名单，一定时间不能抽奖
 				//_, err = database.CreateBanIP(mysqlConn, clientIP, int(config.BanIPsExpireTime))
+				//
 			} else {
 				util.LogRus.Errorf("订单消息解析失败: %s", string(message.Value))
 			}
